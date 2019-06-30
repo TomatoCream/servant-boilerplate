@@ -1,0 +1,57 @@
+#+TITLE: readme
+* setup
+#+BEGIN_SRC sh
+stack new servant-boilerplate servant
+#+END_SRC
+
+#+BEGIN_SRC sh
+cabal2nix . > servant-boilerplate.nix
+#+END_SRC
+** Generate shell.nix
+pullout required packages from cabal file
+#+BEGIN_SRC nix :tangle shell.nix
+{ nixpkgs ? import <nixpkgs> {}, compiler ? "ghc865" }:
+
+let
+  inherit (nixpkgs) pkgs;
+  #final01 = import ./default.nix {};
+  ghc = pkgs.haskell.packages.${compiler}.ghcWithPackages (ps: with ps; [
+    aeson base servant-server wai warp
+  ]);
+  systemPackages = with pkgs; [
+    # add whatever system packages you want.
+    binutils
+    gcc
+    ghc
+
+    zlib
+    zlib.dev
+  ];
+in
+  pkgs.stdenv.mkDerivation {
+    name = "servant-boilerplate";
+    buildInputs = [ ghc systemPackages ];
+    shellHook = ''
+      eval $(egrep ^export ${ghc}/bin/ghc)
+    '';
+}
+#+END_SRC
+** add to stack.yaml
+#+BEGIN_SRC yaml
+nix:
+  enable: true
+  shell-file: shell.nix
+#+END_SRC
+** run and test
+#+BEGIN_SRC sh
+nix-shell
+stack install
+stack exec -- servant-boilerplate-exe
+#+END_SRC
+
+#+BEGIN_SRC sh :results output
+curl http://localhost:8080/users --header "accept: application/json"
+#+END_SRC
+
+#+RESULTS:
+: [{"userId":1,"userFirstName":"Isaac","userLastName":"Newton"},{"userId":2,"userFirstName":"Albert","userLastName":"Einstein"}]
